@@ -1,0 +1,649 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>수식 노트</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/mathlive@0.111.1/mathlive-static.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/mathlive@0.111.1/mathlive-fonts.css">
+<style>
+:root {
+  --bg: #f6f7f9; --surface: #ffffff; --surface-2: #f0f2f5; --border: #dde1e7;
+  --text: #1c1f24; --muted: #6b7280; --accent: #c2410c; --accent-soft: #fff1e8;
+  --primary: #1f5fbf; --primary-text: #ffffff; --ok: #15803d; --err: #b91c1c;
+  --shadow: 0 1px 2px rgba(0,0,0,.06), 0 2px 8px rgba(0,0,0,.04);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #15171b; --surface: #1d2026; --surface-2: #262a31; --border: #343944;
+    --text: #e7e9ee; --muted: #9aa1ad; --accent: #fb923c; --accent-soft: #3a2618;
+    --primary: #4f8ff7; --primary-text: #0b1220; --ok: #4ade80; --err: #f87171;
+    --shadow: none;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #15171b; --surface: #1d2026; --surface-2: #262a31; --border: #343944;
+  --text: #e7e9ee; --muted: #9aa1ad; --accent: #fb923c; --accent-soft: #3a2618;
+  --primary: #4f8ff7; --primary-text: #0b1220; --ok: #4ade80; --err: #f87171;
+  --shadow: none;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--bg); color: var(--text);
+  font: 15px/1.5 "Segoe UI", "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif;
+}
+button { font: inherit; color: inherit; }
+.wrap { max-width: 980px; margin: 0 auto; padding: 0 16px 48px; }
+
+header {
+  position: sticky; top: 0; z-index: 10; background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+header .wrap { display: flex; align-items: center; gap: 10px; padding-top: 10px; padding-bottom: 10px; flex-wrap: wrap; }
+header h1 { font-size: 18px; margin: 0 auto 0 0; font-weight: 650; letter-spacing: -0.01em; }
+.btn {
+  border: 1px solid var(--border); background: var(--surface); border-radius: 8px;
+  padding: 6px 12px; cursor: pointer; white-space: nowrap;
+}
+.btn:hover { background: var(--surface-2); }
+.btn.primary { background: var(--primary); color: var(--primary-text); border-color: var(--primary); font-weight: 600; }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn.small { padding: 3px 8px; font-size: 13px; }
+.seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.seg button { border: 0; background: var(--surface); padding: 6px 10px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--primary); color: var(--primary-text); font-weight: 600; }
+
+section.card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+  box-shadow: var(--shadow); margin-top: 16px;
+}
+.label { font-size: 13px; color: var(--muted); font-weight: 600; margin-bottom: 6px; display: block; }
+#question {
+  width: 100%; min-height: 64px; resize: vertical; border: 1px solid var(--border); border-radius: 8px;
+  background: var(--surface); color: var(--text); padding: 8px 10px; font: inherit;
+}
+.pad { padding: 14px 16px; }
+
+/* 기호 팔레트 */
+.tabs { display: flex; gap: 4px; flex-wrap: wrap; padding: 10px 12px 0; border-bottom: 1px solid var(--border); }
+.tabs button {
+  border: 0; background: transparent; padding: 8px 12px; cursor: pointer; border-bottom: 2px solid transparent;
+  color: var(--muted); font-weight: 600;
+}
+.tabs button[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); }
+.palette { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 6px; padding: 12px; }
+.key {
+  min-height: 46px; border: 1px solid var(--border); background: var(--surface-2); border-radius: 8px;
+  cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 4px;
+  font-size: 15px; overflow: hidden;
+}
+.key:hover { border-color: var(--accent); background: var(--accent-soft); }
+.key .ML__latex { font-size: 1em; }
+.key.text { font-size: 13px; font-weight: 600; }
+.pal-note { padding: 0 12px 10px; font-size: 12.5px; color: var(--muted); }
+
+/* 수식 줄 */
+#lines { list-style: none; margin: 0; padding: 0; }
+.line { display: grid; grid-template-columns: 34px 1fr auto; gap: 8px; padding: 12px 14px; border-top: 1px solid var(--border); align-items: start; }
+.line:first-child { border-top: 0; }
+.line.active { background: color-mix(in srgb, var(--accent-soft) 45%, transparent); }
+.num { color: var(--muted); font-weight: 600; padding-top: 10px; text-align: right; font-variant-numeric: tabular-nums; }
+math-field, .fallback-input {
+  width: 100%; font-size: 22px; border: 1px solid var(--border); border-radius: 8px;
+  padding: 6px 10px; background: var(--surface); color: var(--text);
+  --caret-color: var(--accent); --selection-background-color: var(--accent-soft);
+  --contains-highlight-background-color: transparent;
+}
+math-field:focus-within { outline: 2px solid var(--accent); outline-offset: -1px; }
+.fallback-input { font: 16px/1.4 Consolas, "Courier New", monospace; }
+.memo {
+  margin-top: 6px; width: 100%; border: 0; border-bottom: 1px dashed var(--border); background: transparent;
+  color: var(--text); font: inherit; font-size: 13.5px; padding: 3px 2px;
+}
+.memo:focus { outline: none; border-bottom-color: var(--accent); }
+.result { margin-top: 6px; min-height: 22px; font-size: 18px; overflow-x: auto; overflow-y: hidden; }
+.result .msg { font-size: 13.5px; color: var(--muted); }
+.result .msg.err { color: var(--err); }
+.result .note { font-size: 12px; color: var(--muted); margin-left: 8px; }
+.result .ok { color: var(--ok); }
+.tools { display: flex; flex-direction: column; gap: 4px; padding-top: 6px; }
+.icon-btn {
+  width: 30px; height: 28px; border: 1px solid transparent; background: transparent; border-radius: 6px; cursor: pointer;
+  color: var(--muted); display: inline-flex; align-items: center; justify-content: center;
+}
+.icon-btn:hover { border-color: var(--border); color: var(--text); background: var(--surface-2); }
+.icon-btn svg { width: 16px; height: 16px; }
+.add-row { display: flex; gap: 8px; padding: 10px 14px 14px; border-top: 1px solid var(--border); flex-wrap: wrap; }
+
+details.preview summary { cursor: pointer; padding: 12px 16px; font-weight: 600; }
+details.preview pre {
+  margin: 0 16px 16px; padding: 12px; background: var(--surface-2); border-radius: 8px;
+  white-space: pre-wrap; word-break: break-all; font: 13px/1.5 Consolas, "Courier New", monospace; max-height: 320px; overflow: auto;
+}
+.opts { display: flex; gap: 16px; flex-wrap: wrap; padding: 0 16px 12px; font-size: 14px; }
+
+.banner { margin-top: 16px; padding: 10px 14px; border-radius: 8px; background: var(--accent-soft); border: 1px solid var(--accent); font-size: 14px; }
+.toast {
+  position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) translateY(20px); opacity: 0;
+  background: var(--text); color: var(--bg); padding: 10px 16px; border-radius: 10px; font-size: 14px;
+  transition: .2s; pointer-events: none; z-index: 50; max-width: calc(100% - 32px);
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+dialog { border: 1px solid var(--border); border-radius: 12px; background: var(--surface); color: var(--text); max-width: 640px; width: calc(100% - 32px); padding: 0; }
+dialog::backdrop { background: rgba(0,0,0,.35); }
+dialog .pad h2 { margin: 0 0 8px; font-size: 18px; }
+dialog ul { padding-left: 20px; margin: 6px 0 12px; }
+dialog li { margin: 3px 0; }
+kbd { border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; font-size: 12.5px; background: var(--surface-2); }
+
+@media (max-width: 600px) {
+  .line { grid-template-columns: 22px 1fr auto; padding: 10px 8px; gap: 6px; }
+  math-field { font-size: 19px; }
+  header h1 { width: 100%; }
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <h1>수식 노트</h1>
+    <div class="seg" role="group" aria-label="각도 단위">
+      <button type="button" data-angle="RAD" title="라디안 (미적분 기본)">RAD</button>
+      <button type="button" data-angle="DEG" title="도(°) 단위">DEG</button>
+    </div>
+    <button class="btn" type="button" id="btnHelp">사용법</button>
+    <button class="btn" type="button" id="btnNew">새 노트</button>
+    <button class="btn primary" type="button" id="btnCopyAll">Claude에게 보낼 내용 복사</button>
+  </div>
+</header>
+
+<main class="wrap">
+  <div id="offline" class="banner" hidden>
+    수식 편집기(MathLive)를 불러오지 못했습니다. 인터넷 연결을 확인하고 새로고침해 주세요.
+    지금은 LaTeX를 직접 입력하는 모드로 동작합니다 (예: <code>\frac{1}{2}+x^{2}</code>).
+  </div>
+
+  <section class="card pad">
+    <label class="label" for="question">질문 / 요청 (선택)</label>
+    <textarea id="question" placeholder="예: 이 적분을 풀이 과정과 함께 설명해줘"></textarea>
+  </section>
+
+  <section class="card" aria-label="기호 팔레트">
+    <div class="tabs" role="tablist" id="tabs"></div>
+    <div class="palette" id="palette"></div>
+    <div class="pal-note" id="palNote"></div>
+  </section>
+
+  <section class="card" aria-label="수식">
+    <ol id="lines"></ol>
+    <div class="add-row">
+      <button class="btn" type="button" id="btnAdd">+ 수식 추가</button>
+      <span style="color:var(--muted);font-size:13px;align-self:center">수식 안에서 <kbd>Enter</kbd> 를 누르면 새 줄이 생깁니다</span>
+    </div>
+  </section>
+
+  <section class="card">
+    <details class="preview" id="previewBox">
+      <summary>보낼 내용 미리보기</summary>
+      <div class="opts">
+        <label><input type="checkbox" id="optResults" checked> 계산 결과 포함</label>
+        <label><input type="checkbox" id="optMemo" checked> 메모 포함</label>
+      </div>
+      <pre id="preview"></pre>
+    </details>
+  </section>
+</main>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<dialog id="help">
+  <div class="pad">
+    <h2>사용법</h2>
+    <ul>
+      <li>수식 칸을 클릭하고 키보드로 입력하거나, 위의 <b>기호 버튼</b>을 누르세요.</li>
+      <li><kbd>/</kbd> 분수 · <kbd>^</kbd> 지수 · <kbd>_</kbd> 아래첨자 · <kbd>Tab</kbd> 다음 빈칸 · 방향키로 이동</li>
+      <li><code>sqrt</code>, <code>pi</code>, <code>alpha</code>, <code>int</code>, <code>sum</code>, <code>&lt;=</code> 처럼 타이핑하면 기호로 바뀝니다.</li>
+      <li><kbd>Enter</kbd> 새 줄 · 빈 줄에서 <kbd>Backspace</kbd> 줄 삭제</li>
+      <li><b>a=3</b> 처럼 쓰면 아래 줄에서 a를 쓸 수 있고, <b>f(x)=x^2</b> 로 함수를 정의하면 f(2), f'(x)를 계산합니다.</li>
+      <li>방정식·부등식은 미지수가 하나면 자동으로 풀고, 여러 개면 <b>연립</b> 버튼으로 묶어 주세요.</li>
+      <li>계산할 수 없는 식(부정적분, 증명 등)도 그대로 적어서 보내면 됩니다.</li>
+    </ul>
+    <p style="margin:0 0 12px">다 쓰고 나서 <b>Claude에게 보낼 내용 복사</b>를 누른 뒤, Claude 대화창에 <kbd>Ctrl</kbd>+<kbd>V</kbd> 로 붙여넣으세요.
+      수식은 Claude가 정확히 읽을 수 있는 LaTeX 형식으로 복사됩니다.</p>
+    <p style="margin:0 0 12px;color:var(--muted);font-size:13px">계산 결과는 이 프로그램이 직접 계산한 것입니다. 적분·극한·방정식 해는 수치 계산이라 근삿값일 수 있습니다.
+      작성 내용은 이 브라우저에 자동 저장됩니다.</p>
+    <form method="dialog" style="text-align:right"><button class="btn">닫기</button></form>
+  </div>
+</dialog>
+
+<script src="https://cdn.jsdelivr.net/npm/mathlive@0.111.1/mathlive.min.js" onerror="window.__mlFailed = true"></script>
+<script>
+/*@@ENGINE@@*/
+</script>
+<script>
+(() => {
+  'use strict';
+  const ML = window.__mlFailed ? null : (window.MathLive || null);
+  const HAS_ML = !!(ML && customElements.get('math-field'));
+  if (HAS_ML) {
+    try { window.MathfieldElement.soundsDirectory = null; } catch (e) { /* 무시 */ }
+  } else {
+    document.getElementById('offline').hidden = false;
+  }
+
+  const $ = (s) => document.querySelector(s);
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const renderTeX = (latex) => {
+    if (!HAS_ML) return `<code>${esc(latex)}</code>`;
+    try { return ML.convertLatexToMarkup(latex); } catch (e) { return `<code>${esc(latex)}</code>`; }
+  };
+
+  // ---------------------------------------------------------------- 상태
+  const STORE = 'mathnote.v1';
+  let state = { question: '', angle: 'RAD', lines: [{ latex: '', memo: '' }], optResults: true, optMemo: true };
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORE) || 'null');
+    if (saved && Array.isArray(saved.lines) && saved.lines.length) state = { ...state, ...saved };
+  } catch (e) { /* 저장소 사용 불가 */ }
+  const save = () => { try { localStorage.setItem(STORE, JSON.stringify(state)); } catch (e) { /* 무시 */ } };
+
+  let activeIndex = 0;
+  let fields = [];
+  let results = [];
+
+  // ---------------------------------------------------------------- 팔레트
+  // [삽입할 LaTeX, 버튼에 보일 LaTeX(생략 시 자동), 설명]
+  const P = (insert, show, tip) => ({ insert, show, tip });
+  const T = (label, cmd, tip) => ({ label, cmd, tip });
+  const TABS = [
+    { name: '기본', keys: [
+      P('\\frac{#0}{#?}', null, '분수 ( / 키)'), P('#@^{#?}', 'x^{\\square}', '거듭제곱 ( ^ 키)'), P('#@^{2}', 'x^2', '제곱'),
+      P('\\sqrt{#0}', null, '제곱근'), P('\\sqrt[#?]{#0}', null, 'n제곱근'), P('\\left|#0\\right|', null, '절댓값'),
+      P('\\left(#0\\right)', null, '괄호'), P('\\pi', null, '원주율'), P('e', null, '자연상수 e'), P('\\infty', null, '무한대'),
+      P('\\cdot', null, '곱하기 ( * 키)'), P('\\times', null, '곱하기 ×'), P('\\div', null, '나누기'), P('\\pm', null, '플러스마이너스'),
+      P('#@!', 'n!', '팩토리얼'), P('^{\\circ}', 'x^{\\circ}', '도(°)'), P('\\%', null, '퍼센트'), P('#@_{#?}', 'x_{\\square}', '아래첨자 ( _ 키)'),
+      P('\\sin\\left(#0\\right)', '\\sin', '사인'), P('\\cos\\left(#0\\right)', '\\cos', '코사인'), P('\\tan\\left(#0\\right)', '\\tan', '탄젠트'),
+      P('\\sin^{-1}\\left(#0\\right)', '\\sin^{-1}', '역사인'), P('\\cos^{-1}\\left(#0\\right)', '\\cos^{-1}', '역코사인'), P('\\tan^{-1}\\left(#0\\right)', '\\tan^{-1}', '역탄젠트'),
+      P('\\ln\\left(#0\\right)', '\\ln', '자연로그'), P('\\log\\left(#0\\right)', '\\log', '상용로그 (밑 10)'), P('\\log_{#?}\\left(#0\\right)', '\\log_{\\square}', '밑이 있는 로그'),
+      P('e^{#?}', 'e^{\\square}', '지수함수'), P('\\binom{#?}{#?}', null, '조합 nCr'),
+    ] },
+    { name: '미적분', keys: [
+      P('\\int_{#?}^{#?}#?\\,\\mathrm{d}x', '\\int_a^b', '정적분'), P('\\int #?\\,\\mathrm{d}x', '\\int', '부정적분'),
+      P('\\frac{\\mathrm{d}}{\\mathrm{d}x}\\left(#?\\right)', '\\frac{d}{dx}', '미분'), P('\\frac{\\mathrm{d}^{2}}{\\mathrm{d}x^{2}}\\left(#?\\right)', '\\frac{d^2}{dx^2}', '2계 미분'),
+      P('\\frac{\\partial}{\\partial x}\\left(#?\\right)', '\\frac{\\partial}{\\partial x}', '편미분'),
+      P('\\lim_{x\\to#?}#?', '\\lim_{x\\to a}', '극한'), P('\\lim_{x\\to\\infty}#?', '\\lim_{x\\to\\infty}', '무한대 극한'),
+      P('\\lim_{x\\to#?^{+}}#?', '\\lim_{x\\to a^+}', '우극한'), P('\\lim_{x\\to#?^{-}}#?', '\\lim_{x\\to a^-}', '좌극한'),
+      P('\\sum_{n=#?}^{#?}#?', '\\sum', '합 (시그마)'), P('\\sum_{n=1}^{\\infty}#?', '\\sum_{1}^{\\infty}', '무한급수'), P('\\prod_{n=#?}^{#?}#?', '\\prod', '곱'),
+      P('f\\left(x\\right)=#?', 'f(x)=', '함수 정의'), P("f'\\left(x\\right)", "f'(x)", '도함수'), P('f\\left(#?\\right)', 'f(\\square)', '함숫값'),
+      P('\\mathrm{d}x', 'dx', '미분소 dx'), P('\\mathrm{d}y', 'dy', '미분소 dy'), P('\\to', null, '화살표 (극한)'),
+      P('\\iint #?\\,\\mathrm{d}A', '\\iint', '이중적분 (계산 안 함)'), P('\\oint #?', '\\oint', '선적분 (계산 안 함)'), P('\\nabla', null, '나블라'),
+    ] },
+    { name: '방정식', keys: [
+      P('=', null, '등호'), P('\\ne', null, '같지 않음'), P('<', null, '작다'), P('>', null, '크다'), P('\\le', null, '작거나 같다'),
+      P('\\ge', null, '크거나 같다'), P('\\approx', null, '근사'), P('x', null, '미지수 x'), P('y', null, '미지수 y'), P('z', null, '미지수 z'),
+      P('\\begin{cases}#?\\\\#?\\end{cases}', '\\begin{cases}\\square\\\\\\square\\end{cases}', '연립방정식 (2개)'),
+      P('\\begin{cases}#?\\\\#?\\\\#?\\end{cases}', '\\begin{cases}\\square\\\\\\square\\\\\\square\\end{cases}', '연립방정식 (3개)'),
+      P('#?x^{2}+#?x+#?=0', 'ax^2+bx+c=0', '이차방정식 틀'), P('x=\\frac{-b\\pm\\sqrt{b^{2}-4ac}}{2a}', '\\frac{-b\\pm\\sqrt{\\cdots}}{2a}', '근의 공식 (표기용)'),
+      T('행 추가', 'addRowAfter', '연립/행렬에 줄 추가'),
+    ] },
+    { name: '행렬·벡터', keys: [
+      P('\\begin{pmatrix}#?&#?\\\\#?&#?\\end{pmatrix}', '\\begin{pmatrix}\\square&\\square\\\\\\square&\\square\\end{pmatrix}', '2×2 행렬'),
+      P('\\begin{pmatrix}#?&#?&#?\\\\#?&#?&#?\\\\#?&#?&#?\\end{pmatrix}', '\\begin{pmatrix}\\cdot&\\cdot&\\cdot\\\\\\cdot&\\cdot&\\cdot\\\\\\cdot&\\cdot&\\cdot\\end{pmatrix}', '3×3 행렬'),
+      P('\\begin{pmatrix}#?\\\\#?\\end{pmatrix}', '\\begin{pmatrix}\\square\\\\\\square\\end{pmatrix}', '2차원 벡터'),
+      P('\\begin{pmatrix}#?\\\\#?\\\\#?\\end{pmatrix}', '\\begin{pmatrix}\\square\\\\\\square\\\\\\square\\end{pmatrix}', '3차원 벡터'),
+      P('\\begin{vmatrix}#?&#?\\\\#?&#?\\end{vmatrix}', '\\begin{vmatrix}\\square&\\square\\\\\\square&\\square\\end{vmatrix}', '행렬식 |A|'),
+      P('\\det\\left(#0\\right)', '\\det', '행렬식'), P('#@^{T}', 'A^{T}', '전치행렬'), P('#@^{-1}', 'A^{-1}', '역행렬'),
+      P('\\cdot', 'u\\cdot v', '내적'), P('\\times', 'u\\times v', '외적'), P('\\vec{#?}', '\\vec{v}', '벡터 표기 (계산 안 함)'),
+      P('A', null, '행렬 이름 A'), P('B', null, '행렬 이름 B'),
+      T('행 추가', 'addRowAfter', '행렬에 행 추가'), T('열 추가', 'addColumnAfter', '행렬에 열 추가'),
+      T('행 삭제', 'removeRow', '현재 행 삭제'), T('열 삭제', 'removeColumn', '현재 열 삭제'),
+    ] },
+    { name: '그리스·기호', keys: [
+      ...['alpha', 'beta', 'gamma', 'delta', 'epsilon', 'theta', 'lambda', 'mu', 'sigma', 'phi', 'omega', 'rho', 'tau', 'Delta', 'Sigma', 'Omega']
+        .map((g) => P(`\\${g}`, null, g)),
+      P('\\in', null, '원소'), P('\\notin', null, '원소 아님'), P('\\subset', null, '부분집합'), P('\\cup', null, '합집합'), P('\\cap', null, '교집합'),
+      P('\\emptyset', null, '공집합'), P('\\forall', null, '모든'), P('\\exists', null, '존재'), P('\\Rightarrow', null, '이면'), P('\\Leftrightarrow', null, '동치'),
+      P('\\therefore', null, '그러므로'), P('\\mathbb{R}', null, '실수'), P('\\mathbb{N}', null, '자연수'), P('\\mathbb{Z}', null, '정수'),
+      P('\\angle', null, '각'), P('\\perp', null, '수직'), P('\\parallel', null, '평행'), P('\\overline{#?}', '\\overline{AB}', '선분'), P('\\triangle', null, '삼각형'),
+    ] },
+  ];
+  const TAB_NOTES = {
+    '기본': '키보드로도 입력할 수 있어요: / 분수, ^ 지수, sqrt → √, pi → π',
+    '미적분': '정적분·미분·극한·합은 자동 계산됩니다. 부정적분처럼 계산이 안 되는 식도 그대로 Claude에게 보낼 수 있어요.',
+    '방정식': '미지수 하나짜리 방정식·부등식은 자동으로 풉니다. 미지수가 여러 개면 연립방정식 버튼으로 묶어 주세요.',
+    '행렬·벡터': '행렬은 A=(행렬) 처럼 이름을 붙이면 다음 줄에서 A⁻¹, det A, AB 처럼 쓸 수 있어요.',
+    '그리스·기호': '증명·집합 기호는 계산하지 않고 그대로 전달됩니다.',
+  };
+  let currentTab = 0;
+
+  const showLatex = (k) => k.show || k.insert.replace(/#[0?]/g, '\\square').replace(/#@/g, 'x');
+
+  function buildTabs() {
+    const tabs = $('#tabs');
+    tabs.innerHTML = '';
+    TABS.forEach((t, i) => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.role = 'tab'; b.textContent = t.name;
+      b.setAttribute('aria-selected', String(i === currentTab));
+      b.addEventListener('click', () => { currentTab = i; buildTabs(); buildPalette(); });
+      tabs.appendChild(b);
+    });
+  }
+
+  function buildPalette() {
+    const pal = $('#palette');
+    pal.innerHTML = '';
+    const tab = TABS[currentTab];
+    tab.keys.forEach((k) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'key' + (k.cmd ? ' text' : '');
+      b.title = k.tip || '';
+      if (k.cmd) b.textContent = k.label;
+      else b.innerHTML = renderTeX(showLatex(k));
+      b.addEventListener('mousedown', (e) => e.preventDefault()); // 수식 칸의 포커스 유지
+      b.addEventListener('click', () => (k.cmd ? runCommand(k.cmd) : insertLatex(k.insert)));
+      pal.appendChild(b);
+    });
+    $('#palNote').textContent = TAB_NOTES[tab.name] || '';
+  }
+
+  function activeField() {
+    return fields[Math.min(activeIndex, fields.length - 1)];
+  }
+
+  function insertLatex(latex) {
+    const f = activeField();
+    if (!f) return;
+    if (HAS_ML) {
+      f.focus();
+      f.insert(latex, { insertionMode: 'replaceSelection', selectionMode: 'placeholder', focus: true });
+      // insert는 input 이벤트를 내지 않을 수 있어 직접 갱신
+      onFieldInput(fields.indexOf(f));
+    } else {
+      const plain = latex.replace(/#@|#0|#\?/g, '');
+      const s = f.selectionStart ?? f.value.length, e = f.selectionEnd ?? s;
+      f.value = f.value.slice(0, s) + plain + f.value.slice(e);
+      f.focus();
+      f.selectionStart = f.selectionEnd = s + plain.length;
+      onFieldInput(fields.indexOf(f));
+    }
+  }
+
+  function runCommand(cmd) {
+    const f = activeField();
+    if (!f || !HAS_ML) return;
+    f.focus();
+    try { f.executeCommand(cmd); } catch (e) { /* 행렬 밖에서는 무시 */ }
+    onFieldInput(fields.indexOf(f));
+  }
+
+  // ---------------------------------------------------------------- 수식 줄
+  const ICON_COPY = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5" y="5" width="8.5" height="8.5" rx="1.5"/><path d="M10.5 5V3.5A1.5 1.5 0 0 0 9 2H3.5A1.5 1.5 0 0 0 2 3.5V9a1.5 1.5 0 0 0 1.5 1.5H5"/></svg>';
+  const ICON_DEL = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.7 8.5h5.6l.7-8.5"/></svg>';
+  const ICON_UP = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 13V3M4 7l4-4 4 4"/></svg>';
+
+  function makeField(i) {
+    let f;
+    if (HAS_ML) {
+      f = document.createElement('math-field');
+      f.setAttribute('aria-label', `수식 ${i + 1}`);
+      f.value = state.lines[i].latex;
+      f.addEventListener('input', () => onFieldInput(fields.indexOf(f)));
+      f.addEventListener('keydown', (e) => onKey(e, f), { capture: true });
+    } else {
+      f = document.createElement('input');
+      f.className = 'fallback-input';
+      f.placeholder = 'LaTeX 입력 (예: \\frac{1}{2}+x^{2})';
+      f.value = state.lines[i].latex;
+      f.addEventListener('input', () => onFieldInput(fields.indexOf(f)));
+      f.addEventListener('keydown', (e) => onKey(e, f));
+    }
+    f.addEventListener('focus', () => setActive(fields.indexOf(f)));
+    f.addEventListener('focusin', () => setActive(fields.indexOf(f)));
+    return f;
+  }
+
+  function onKey(e, f) {
+    const i = fields.indexOf(f);
+    if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey && !e.isComposing) {
+      e.preventDefault(); e.stopPropagation();
+      addLine(i + 1);
+      return;
+    }
+    if (e.key === 'Backspace' && !fieldValue(f) && state.lines.length > 1) {
+      e.preventDefault(); e.stopPropagation();
+      removeLine(i, true);
+    }
+  }
+
+  const fieldValue = (f) => (f.value || '').trim();
+
+  function setActive(i) {
+    if (i < 0) return;
+    activeIndex = i;
+    document.querySelectorAll('#lines .line').forEach((li, k) => li.classList.toggle('active', k === i));
+  }
+
+  function renderLines(focusIndex) {
+    const ol = $('#lines');
+    ol.innerHTML = '';
+    fields = [];
+    state.lines.forEach((line, i) => {
+      const li = document.createElement('li');
+      li.className = 'line';
+      const num = document.createElement('div');
+      num.className = 'num';
+      num.textContent = `(${i + 1})`;
+      const body = document.createElement('div');
+      body.style.minWidth = '0';
+      const f = makeField(i);
+      fields.push(f);
+      const res = document.createElement('div');
+      res.className = 'result';
+      const memo = document.createElement('input');
+      memo.className = 'memo';
+      memo.placeholder = '메모 (선택) — 예: 조건, 단위, 궁금한 점';
+      memo.value = line.memo || '';
+      memo.addEventListener('input', () => { state.lines[i].memo = memo.value; save(); updatePreview(); });
+      body.append(f, res, memo);
+
+      const tools = document.createElement('div');
+      tools.className = 'tools';
+      const bCopy = iconBtn(ICON_COPY, '이 수식만 복사 (LaTeX)', () => copyText(`$$${state.lines[i].latex}$$`, '수식을 복사했습니다'));
+      const bUp = iconBtn(ICON_UP, '위로 이동', () => moveLine(i));
+      const bDel = iconBtn(ICON_DEL, '이 줄 삭제', () => removeLine(i));
+      if (i === 0) bUp.style.visibility = 'hidden';
+      tools.append(bCopy, bUp, bDel);
+      li.append(num, body, tools);
+      ol.appendChild(li);
+    });
+    recompute();
+    if (focusIndex != null) {
+      const f = fields[focusIndex];
+      setActive(focusIndex);
+      if (f) setTimeout(() => f.focus(), 0);
+    } else setActive(Math.min(activeIndex, fields.length - 1));
+  }
+
+  function iconBtn(svg, label, fn) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'icon-btn'; b.title = label; b.setAttribute('aria-label', label);
+    b.innerHTML = svg;
+    b.addEventListener('click', fn);
+    return b;
+  }
+
+  function syncFromFields() {
+    fields.forEach((f, i) => { if (state.lines[i]) state.lines[i].latex = f.value || ''; });
+  }
+
+  function addLine(at = state.lines.length) {
+    syncFromFields();
+    state.lines.splice(at, 0, { latex: '', memo: '' });
+    save();
+    renderLines(at);
+  }
+
+  function removeLine(i, focusPrev) {
+    syncFromFields();
+    if (state.lines.length === 1) {
+      state.lines[0] = { latex: '', memo: '' };
+    } else {
+      state.lines.splice(i, 1);
+    }
+    save();
+    renderLines(focusPrev ? Math.max(0, i - 1) : null);
+  }
+
+  function moveLine(i) {
+    if (i === 0) return;
+    syncFromFields();
+    [state.lines[i - 1], state.lines[i]] = [state.lines[i], state.lines[i - 1]];
+    save();
+    renderLines(i - 1);
+  }
+
+  let timer = null;
+  function onFieldInput(i) {
+    if (i < 0) return;
+    state.lines[i].latex = fields[i].value || '';
+    save();
+    clearTimeout(timer);
+    timer = setTimeout(recompute, 180);
+  }
+
+  // ---------------------------------------------------------------- 계산 & 표시
+  function recompute() {
+    results = MathNote.analyzeAll(state.lines.map((l) => l.latex), state.angle);
+    const boxes = document.querySelectorAll('#lines .result');
+    results.forEach((r, i) => { if (boxes[i]) boxes[i].innerHTML = resultHTML(r); });
+    updatePreview();
+  }
+
+  function resultLatex(r) {
+    switch (r.kind) {
+      case 'value': return r.latex.startsWith('\\approx') ? r.latex : `=${r.latex}`;
+      case 'symbolic': return `=${r.latex}`;
+      case 'assign': case 'solutions': return r.latex;
+      case 'bool': return r.latex + (r.detail ? `\\;${r.detail.replace(/[()]/g, '')}` : '');
+      default: return null;
+    }
+  }
+
+  function resultHTML(r) {
+    if (r.kind === 'empty') return '';
+    const lx = resultLatex(r);
+    if (lx) {
+      const cls = r.kind === 'bool' ? (r.ok ? 'ok' : 'msg err') : '';
+      let html = `<span class="${cls}">${renderTeX(lx)}</span>`;
+      if (r.kind === 'solutions' && /^[a-z]/.test(r.latex) && !r.latex.includes('\\text')) html = `<span class="note" style="margin:0 6px 0 0">해:</span>${html}`;
+      if (r.note) html += `<span class="note">${esc(r.note)}</span>`;
+      return html;
+    }
+    const cls = r.kind === 'error' ? 'msg err' : 'msg';
+    return `<span class="${cls}">${esc(r.text || '')}</span>`;
+  }
+
+  function resultPlain(r) {
+    const lx = resultLatex(r);
+    if (lx) return `$${lx}$${r.note ? ` (${r.note})` : ''}`;
+    if (r.kind === 'define') return r.text;
+    return null;
+  }
+
+  function buildMessage() {
+    syncFromFields();
+    const out = [];
+    const q = state.question.trim();
+    const lines = state.lines.map((l, i) => ({ ...l, r: results[i] })).filter((l) => l.latex.trim() || (state.optMemo && (l.memo || '').trim()));
+    out.push('아래는 수식 노트에서 작성한 내용이야. 수식은 LaTeX 형식이야.');
+    out.push('');
+    if (q) { out.push('[질문]'); out.push(q); out.push(''); }
+    if (lines.length) {
+      out.push('[수식]');
+      lines.forEach((l, k) => {
+        out.push(`(${k + 1}) ${l.latex.trim() ? `$$${l.latex.trim()}$$` : ''}`);
+        if (state.optMemo && (l.memo || '').trim()) out.push(`    메모: ${l.memo.trim()}`);
+        if (state.optResults && l.r) {
+          const rp = resultPlain(l.r);
+          if (rp) out.push(`    계산기 결과: ${rp}`);
+        }
+      });
+    }
+    const trig = state.lines.some((l) => /\\(sin|cos|tan|cot|sec|csc|arc)/.test(l.latex));
+    if (state.angle === 'DEG' && trig) { out.push(''); out.push('(각도 단위: 도(°))'); }
+    return out.join('\n');
+  }
+
+  function updatePreview() {
+    $('#preview').textContent = buildMessage();
+  }
+
+  // ---------------------------------------------------------------- 복사
+  function toast(msg) {
+    const t = $('#toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toast.timer);
+    toast.timer = setTimeout(() => t.classList.remove('show'), 2400);
+  }
+
+  async function copyText(text, msg) {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch (e) {
+      const ta = document.createElement('textarea');
+      ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy'); } catch (e2) { /* 실패 */ }
+      ta.remove();
+    }
+    toast(msg);
+  }
+
+  // ---------------------------------------------------------------- 상단 버튼
+  function setAngle(a) {
+    state.angle = a;
+    document.querySelectorAll('[data-angle]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.angle === a)));
+    save();
+    recompute();
+  }
+  document.querySelectorAll('[data-angle]').forEach((b) => b.addEventListener('click', () => setAngle(b.dataset.angle)));
+
+  $('#btnCopyAll').addEventListener('click', () => {
+    recompute();
+    copyText(buildMessage(), '복사했습니다! Claude 대화창에 Ctrl+V 로 붙여넣으세요');
+  });
+  $('#btnAdd').addEventListener('click', () => addLine());
+  $('#btnHelp').addEventListener('click', () => $('#help').showModal());
+  $('#btnNew').addEventListener('click', () => {
+    if (!confirm('지금 노트를 지우고 새로 시작할까요?')) return;
+    state.question = '';
+    state.lines = [{ latex: '', memo: '' }];
+    $('#question').value = '';
+    save();
+    renderLines(0);
+  });
+  const q = $('#question');
+  q.value = state.question || '';
+  q.addEventListener('input', () => { state.question = q.value; save(); updatePreview(); });
+  const optR = $('#optResults'), optM = $('#optMemo');
+  optR.checked = state.optResults !== false;
+  optM.checked = state.optMemo !== false;
+  optR.addEventListener('change', () => { state.optResults = optR.checked; save(); updatePreview(); });
+  optM.addEventListener('change', () => { state.optMemo = optM.checked; save(); updatePreview(); });
+
+  buildTabs();
+  buildPalette();
+  setAngle(state.angle === 'DEG' ? 'DEG' : 'RAD');
+  renderLines(0);
+
+  // 테스트/디버그용
+  window.__mathnote = { state, buildMessage, recompute, insertLatex, addLine, fields: () => fields };
+})();
+</script>
+</body>
+</html>

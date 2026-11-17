@@ -1,3 +1,20 @@
+# 수식 노트 (mathnote.html)
+
+수식을 교과서처럼 보이는 그대로 입력하고, **Claude에게 붙여넣기 좋은 형식(LaTeX)으로 복사**하는 도구입니다.
+계산 결과도 함께 보여줍니다.
+
+- **실행:** `mathnote.html` 을 더블클릭하면 브라우저(크롬/엣지)에서 열립니다. 인터넷 연결이 필요합니다 (수식 편집기 MathLive를 불러옴).
+- **입력:** 키보드(`/` 분수, `^` 지수, `sqrt`, `pi` …) 또는 기호 팔레트(기본 / 미적분 / 방정식 / 행렬·벡터 / 그리스·기호)
+- **자동 계산:** 수치 계산, 정적분, 미분(기호), 극한, 합·곱, 방정식·부등식 풀이, 연립방정식, 행렬(역행렬·행렬식·전치·곱), 벡터 내적·외적
+- **변수/함수:** `a=3`, `A=(행렬)`, `f(x)=x^2` 로 정의하고 아래 줄에서 사용
+- **보내기:** "Claude에게 보낼 내용 복사" → Claude 대화창에 `Ctrl+V`
+- 작성 내용은 브라우저에 자동 저장됩니다.
+
+소스: `mathnote/app.src.html`(화면) + `mathnote/engine.js`(계산 엔진) → `python mathnote/build.py` 로 `mathnote.html` 생성.
+엔진 테스트: `node mathnote/tests/engine.test.js`
+
+---
+
 # 공학계산기 (Engineering Calculator)
 
 Python 표준 라이브러리(Tkinter)만으로 만든 데스크탑 공학계산기입니다.
